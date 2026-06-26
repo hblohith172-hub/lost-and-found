@@ -4,6 +4,7 @@ Lost and Found Portal - Main Application
 Team: Lohith, Prajwal, Manjegowda, Nithyashree, Manu
 """
 
+import datetime
 import os
 import shutil
 import sys
@@ -78,12 +79,102 @@ class LostAndFoundApp:
                 print("\nInvalid option. Please try again.")
                 press_enter_to_continue()
     
+    def _handle_image_upload(self) -> str:
+        """Handle image upload: copy image to data/images/ with validation.
+        
+        Returns:
+            str: The path to the saved image, or empty string if no image uploaded.
+        """
+        print("\n--- Image Upload ---")
+        image_path = input("Enter path to image file (or press Enter to skip): ").strip()
+        
+        if not image_path:
+            return ""
+        
+        # Validate the file exists
+        if not os.path.isfile(image_path):
+            print("Error: File not found. Proceeding without image.")
+            return ""
+        
+        # Validate file extension (allow common image formats)
+        valid_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp')
+        ext = os.path.splitext(image_path)[1].lower()
+        if ext not in valid_extensions:
+            print(f"Error: Invalid image format '{ext}'. Allowed formats: {', '.join(valid_extensions)}")
+            return ""
+        
+        # Validate file size (max 10 MB)
+        max_size = 10 * 1024 * 1024  # 10 MB
+        file_size = os.path.getsize(image_path)
+        if file_size > max_size:
+            print(f"Error: File too large ({file_size / 1024 / 1024:.1f} MB). Max allowed: 10 MB.")
+            return ""
+        
+        # Create images directory if it doesn't exist
+        os.makedirs(self.db.IMAGES_DIR, exist_ok=True)
+        
+        # Generate unique filename using timestamp
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"image_{timestamp}{ext}"
+        dest_path = os.path.join(self.db.IMAGES_DIR, filename)
+        
+        try:
+            shutil.copy2(image_path, dest_path)
+            print(f"Image uploaded successfully: {dest_path}")
+            return dest_path
+        except (shutil.Error, IOError) as e:
+            print(f"Error copying image: {e}. Proceeding without image.")
+            return ""
+    
     def post_item(self, item_type: str):
-        """Post a new lost or found item."""
-        # TODO: Implement by Prajwal
+        """Post a new lost or found item with optional image upload."""
         clear_screen()
         print_header(f"POST {item_type.upper()} ITEM")
-        print("Feature coming soon - implemented by Prajwal")
+        
+        title = input("Enter item title: ").strip()
+        if not title:
+            print("Title is required. Item not posted.")
+            press_enter_to_continue()
+            return
+        
+        description = input("Enter description: ").strip()
+        if not description:
+            print("Description is required. Item not posted.")
+            press_enter_to_continue()
+            return
+        
+        category = input("Enter category: ").strip()
+        location = input("Enter location: ").strip()
+        contact_name = input("Enter your name: ").strip()
+        contact_phone = input("Enter your phone: ").strip()
+        
+        if not all([category, location, contact_name, contact_phone]):
+            print("All fields are required. Item not posted.")
+            press_enter_to_continue()
+            return
+        
+        # Handle image upload
+        image_path = self._handle_image_upload()
+        
+        new_item = Item(
+            item_id=self.db.get_next_item_id(),
+            title=title,
+            description=description,
+            category=category,
+            location=location,
+            contact_name=contact_name,
+            contact_phone=contact_phone,
+            item_type=item_type,
+            image_path=image_path
+        )
+        
+        items = self.db.load_items()
+        items.append(new_item)
+        self.db.save_items(items)
+        
+        print(f"\n{item_type.capitalize()} item posted successfully!")
+        if image_path:
+            print(f"Image saved at: {image_path}")
         press_enter_to_continue()
     
     def view_all_items(self):
@@ -95,134 +186,19 @@ class LostAndFoundApp:
         press_enter_to_continue()
     
     def search_items(self):
-        """Search and filter items with 5 filter options.
-        
-        Filters: keyword (title/description), category, type (lost/found),
-                 status (active/claimed/resolved), location.
-        """
+        """Search and filter items."""
+        # TODO: Implement by Nithyashree
         clear_screen()
         print_header("SEARCH ITEMS")
-
-        items = self.db.load_items()
-        if not items:
-            print("No items in the database yet.")
-            press_enter_to_continue()
-            return
-
-        # Gather filter criteria from the user
-        keyword = input("Keyword (search in title/description, or press Enter to skip): ").strip().lower()
-        category = input("Category (e.g. Electronics, Clothing, Keys, or press Enter to skip): ").strip().lower()
-        item_type = input("Type (lost/found, or press Enter to skip): ").strip().lower()
-        status = input("Status (active/claimed/resolved, or press Enter to skip): ").strip().lower()
-        location = input("Location (e.g. Library, Cafeteria, or press Enter to skip): ").strip().lower()
-
-        # Apply filters
-        filtered = items
-        if keyword:
-            filtered = [
-                item for item in filtered
-                if keyword in item.title.lower() or keyword in item.description.lower()
-            ]
-        if category:
-            filtered = [
-                item for item in filtered
-                if category in item.category.lower()
-            ]
-        if item_type:
-            filtered = [
-                item for item in filtered
-                if item.item_type.lower() == item_type
-            ]
-        if status:
-            filtered = [
-                item for item in filtered
-                if item.status.lower() == status
-            ]
-        if location:
-            filtered = [
-                item for item in filtered
-                if location in item.location.lower()
-            ]
-
-        # Show results
-        if not filtered:
-            print("\nNo items match your search criteria.")
-        else:
-            print(f"\nFound {len(filtered)} item(s):\n")
-            for item in filtered:
-                print(item)
-                print(f"   Description: {item.description[:80]}{'...' if len(item.description) > 80 else ''}")
-                print(f"   Category: {item.category} | Contact: {item.contact_name} ({item.contact_phone})")
-                if item.posted_by:
-                    print(f"   Posted by: {item.posted_by}")
-                print()
-
+        print("Feature coming soon - implemented by Nithyashree")
         press_enter_to_continue()
     
     def update_status(self):
-        """Update item status to toggle between active/claimed/resolved."""
+        """Update item status."""
+        # TODO: Implement by Nithyashree
         clear_screen()
         print_header("UPDATE ITEM STATUS")
-
-        items = self.db.load_items()
-        if not items:
-            print("No items in the database yet.")
-            press_enter_to_continue()
-            return
-
-        # Show all items with their current status
-        print("Current items:\n")
-        for item in items:
-            print(item)
-        print()
-
-        # Let user pick an item by ID
-        try:
-            choice = input("Enter the Item ID to update (or press Enter to cancel): ").strip()
-            if not choice:
-                return
-            item_id = int(choice)
-        except ValueError:
-            print("\nInvalid Item ID. Please enter a number.")
-            press_enter_to_continue()
-            return
-
-        # Find the item
-        target = None
-        for item in items:
-            if item.item_id == item_id:
-                target = item
-                break
-
-        if target is None:
-            print(f"\nItem with ID {item_id} not found.")
-            press_enter_to_continue()
-            return
-
-        # Show current status and toggle options
-        print(f"\nCurrent status: {target.status.upper()}")
-        status_options = {
-            "1": "active",
-            "2": "claimed",
-            "3": "resolved"
-        }
-        print("\nAvailable statuses:")
-        print("  1. Active")
-        print("  2. Claimed")
-        print("  3. Resolved")
-        print("  0. Cancel")
-
-        new_status = input("\nSelect new status (1-3, or 0 to cancel): ").strip()
-        if new_status in status_options:
-            old_status = target.status
-            target.status = status_options[new_status]
-            self.db.save_items(items)
-            print(f"\n✓ Status updated: '{target.title}' changed from '{old_status}' to '{target.status}'.")
-        elif new_status == "0":
-            print("\nUpdate cancelled.")
-        else:
-            print("\nInvalid option.")
-        
+        print("Feature coming soon - implemented by Nithyashree")
         press_enter_to_continue()
     
     def contact_owner(self):
