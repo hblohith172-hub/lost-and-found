@@ -394,20 +394,155 @@ class LostAndFoundApp:
         press_enter_to_continue()
     
     def contact_owner(self):
-        """Contact the owner of an item."""
-        # TODO: Implement by Manu
+        """Contact the owner of an item.
+
+        Prompts for an item ID, finds the item, and displays the poster's
+        contact information as well as the logged-in user's own contact info.
+        """
         clear_screen()
         print_header("CONTACT OWNER")
-        print("Feature coming soon - implemented by Manu")
+
+        items = self.db.load_items()
+        if not items:
+            print("  No items in the database yet.")
+            press_enter_to_continue()
+            return
+
+        # Show all items briefly
+        print("  Current items:\n")
+        for item in items:
+            print(f"    [{item.item_id}] {item.title} ({item.item_type})")
+        print()
+
+        try:
+            choice = input("  Enter Item ID to contact owner (or press Enter to cancel): ").strip()
+            if not choice:
+                return
+            item_id = int(choice)
+        except ValueError:
+            print("\n  [!] Invalid Item ID. Please enter a number.")
+            press_enter_to_continue()
+            return
+
+        target = None
+        for item in items:
+            if item.item_id == item_id:
+                target = item
+                break
+
+        if target is None:
+            print(f"\n  [!] Item with ID {item_id} not found.")
+            press_enter_to_continue()
+            return
+
+        print(f"\n  Item: {target.title}")
+        print(f"  Type: {target.item_type.upper()}")
+        print(f"  Status: {target.status}")
+        print(f"\n  --- Poster Contact ---")
+        print(f"  Name:  {target.contact_name}")
+        print(f"  Phone: {target.contact_phone}")
+
+        if self.current_user:
+            users = self.db.load_users()
+            current_user_data = None
+            for u in users:
+                if u.username == self.current_user:
+                    current_user_data = u
+                    break
+            if current_user_data:
+                print(f"\n  --- Your Contact Info ---")
+                print(f"  Username: {current_user_data.username}")
+                if current_user_data.phone:
+                    print(f"  Phone:    {current_user_data.phone}")
+                if current_user_data.email:
+                    print(f"  Email:    {current_user_data.email}")
+            else:
+                print(f"\n  --- Your Contact Info ---")
+                print(f"  Username: {self.current_user}")
+        else:
+            print("\n  [i] You are not logged in. Login/Register to see your contact info.")
+
         press_enter_to_continue()
-    
-    def login_menu(self):
-        """User login/register menu."""
-        # TODO: Implement by Manu
+
+    def _login(self):
+        """Prompt for username and log the user in.
+
+        Checks the username against the stored users database.
+        Sets self.current_user on success.
+        """
         clear_screen()
-        print_header("LOGIN / REGISTER")
-        print("Feature coming soon - implemented by Manu")
+        print_header("LOGIN")
+
+        username = _validate_non_empty("  Username: ", "Username").strip()
+
+        users = self.db.load_users()
+        for user in users:
+            if user.username == username:
+                self.current_user = username
+                print(f"\n  ✓ Welcome back, {username}!")
+                press_enter_to_continue()
+                return
+
+        print(f"\n  [!] User '{username}' not found. Please register first.")
         press_enter_to_continue()
+
+    def _register(self):
+        """Register a new user.
+
+        Validates that the username is unique, collects phone and email,
+        saves the user to the database, and auto-logs in.
+        """
+        clear_screen()
+        print_header("REGISTER")
+
+        users = self.db.load_users()
+
+        # Get a unique username
+        while True:
+            username = _validate_non_empty("  Username: ", "Username").strip()
+            # Check uniqueness
+            exists = any(u.username == username for u in users)
+            if exists:
+                print(f"  [!] Username '{username}' is already taken. Please choose another.\n")
+            else:
+                break
+
+        phone = _validate_phone("  Phone Number: ")
+        email = input("  Email (optional, press Enter to skip): ").strip()
+
+        new_user = User(username=username, phone=phone, email=email)
+        users.append(new_user)
+        self.db.save_users(users)
+
+        # Auto-login
+        self.current_user = username
+        print(f"\n  ✓ Registration successful! Welcome, {username}!")
+        press_enter_to_continue()
+
+    def login_menu(self):
+        """User login/register sub-menu with Login / Register / Back options."""
+        while True:
+            clear_screen()
+            user_display = f" | Logged in as: {self.current_user}" if self.current_user else ""
+            print(f"\n{'=' * 50}")
+            print(f"  LOGIN / REGISTER{user_display}")
+            print("=" * 50)
+            print("\n  1. Login")
+            print("  2. Register")
+            print("  0. Back to main menu")
+            print("\n" + "-" * 50)
+
+            choice = input("  Choose an option: ").strip()
+
+            if choice == "1":
+                self._login()
+            elif choice == "2":
+                self._register()
+            elif choice == "0":
+                break
+            else:
+                print("\n  [!] Invalid option. Please try again.")
+                press_enter_to_continue()
 
 
 def main():
