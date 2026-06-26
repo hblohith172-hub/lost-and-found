@@ -95,19 +95,134 @@ class LostAndFoundApp:
         press_enter_to_continue()
     
     def search_items(self):
-        """Search and filter items."""
-        # TODO: Implement by Nithyashree
+        """Search and filter items with 5 filter options.
+        
+        Filters: keyword (title/description), category, type (lost/found),
+                 status (active/claimed/resolved), location.
+        """
         clear_screen()
         print_header("SEARCH ITEMS")
-        print("Feature coming soon - implemented by Nithyashree")
+
+        items = self.db.load_items()
+        if not items:
+            print("No items in the database yet.")
+            press_enter_to_continue()
+            return
+
+        # Gather filter criteria from the user
+        keyword = input("Keyword (search in title/description, or press Enter to skip): ").strip().lower()
+        category = input("Category (e.g. Electronics, Clothing, Keys, or press Enter to skip): ").strip().lower()
+        item_type = input("Type (lost/found, or press Enter to skip): ").strip().lower()
+        status = input("Status (active/claimed/resolved, or press Enter to skip): ").strip().lower()
+        location = input("Location (e.g. Library, Cafeteria, or press Enter to skip): ").strip().lower()
+
+        # Apply filters
+        filtered = items
+        if keyword:
+            filtered = [
+                item for item in filtered
+                if keyword in item.title.lower() or keyword in item.description.lower()
+            ]
+        if category:
+            filtered = [
+                item for item in filtered
+                if category in item.category.lower()
+            ]
+        if item_type:
+            filtered = [
+                item for item in filtered
+                if item.item_type.lower() == item_type
+            ]
+        if status:
+            filtered = [
+                item for item in filtered
+                if item.status.lower() == status
+            ]
+        if location:
+            filtered = [
+                item for item in filtered
+                if location in item.location.lower()
+            ]
+
+        # Show results
+        if not filtered:
+            print("\nNo items match your search criteria.")
+        else:
+            print(f"\nFound {len(filtered)} item(s):\n")
+            for item in filtered:
+                print(item)
+                print(f"   Description: {item.description[:80]}{'...' if len(item.description) > 80 else ''}")
+                print(f"   Category: {item.category} | Contact: {item.contact_name} ({item.contact_phone})")
+                if item.posted_by:
+                    print(f"   Posted by: {item.posted_by}")
+                print()
+
         press_enter_to_continue()
     
     def update_status(self):
-        """Update item status."""
-        # TODO: Implement by Nithyashree
+        """Update item status to toggle between active/claimed/resolved."""
         clear_screen()
         print_header("UPDATE ITEM STATUS")
-        print("Feature coming soon - implemented by Nithyashree")
+
+        items = self.db.load_items()
+        if not items:
+            print("No items in the database yet.")
+            press_enter_to_continue()
+            return
+
+        # Show all items with their current status
+        print("Current items:\n")
+        for item in items:
+            print(item)
+        print()
+
+        # Let user pick an item by ID
+        try:
+            choice = input("Enter the Item ID to update (or press Enter to cancel): ").strip()
+            if not choice:
+                return
+            item_id = int(choice)
+        except ValueError:
+            print("\nInvalid Item ID. Please enter a number.")
+            press_enter_to_continue()
+            return
+
+        # Find the item
+        target = None
+        for item in items:
+            if item.item_id == item_id:
+                target = item
+                break
+
+        if target is None:
+            print(f"\nItem with ID {item_id} not found.")
+            press_enter_to_continue()
+            return
+
+        # Show current status and toggle options
+        print(f"\nCurrent status: {target.status.upper()}")
+        status_options = {
+            "1": "active",
+            "2": "claimed",
+            "3": "resolved"
+        }
+        print("\nAvailable statuses:")
+        print("  1. Active")
+        print("  2. Claimed")
+        print("  3. Resolved")
+        print("  0. Cancel")
+
+        new_status = input("\nSelect new status (1-3, or 0 to cancel): ").strip()
+        if new_status in status_options:
+            old_status = target.status
+            target.status = status_options[new_status]
+            self.db.save_items(items)
+            print(f"\n✓ Status updated: '{target.title}' changed from '{old_status}' to '{target.status}'.")
+        elif new_status == "0":
+            print("\nUpdate cancelled.")
+        else:
+            print("\nInvalid option.")
+        
         press_enter_to_continue()
     
     def contact_owner(self):
