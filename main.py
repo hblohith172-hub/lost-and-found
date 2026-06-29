@@ -10,6 +10,19 @@ import sys
 from models import Database, Item, User
 
 
+CATEGORIES = [
+    "Electronics",
+    "Clothing",
+    "Books & Stationery",
+    "ID Cards & Documents",
+    "Keys & Accessories",
+    "Bags & Luggage",
+    "Sports Equipment",
+    "Money & Valuables",
+    "Other",
+]
+
+
 def clear_screen():
     """Clear the terminal screen."""
     os.system('clear' if os.name == 'posix' else 'cls')
@@ -25,6 +38,70 @@ def print_header(title):
 def press_enter_to_continue():
     """Wait for user to press Enter."""
     input("\nPress Enter to continue...")
+
+
+def _validate_non_empty(prompt: str, field_name: str) -> str:
+    """Prompt until a non-empty value is entered."""
+    while True:
+        value = input(prompt).strip()
+        if value:
+            return value
+        print(f"  [!] {field_name} cannot be empty. Please try again.\n")
+
+
+def _select_category() -> str:
+    """Display category menu and return the chosen category."""
+    print("\n  Select a category:")
+    for i, cat in enumerate(CATEGORIES, 1):
+        print(f"    {i}. {cat}")
+    while True:
+        try:
+            choice = input("\n  Enter category number: ").strip()
+            idx = int(choice)
+            if 1 <= idx <= len(CATEGORIES):
+                return CATEGORIES[idx - 1]
+            else:
+                print(f"  [!] Please enter a number between 1 and {len(CATEGORIES)}.")
+        except ValueError:
+            print("  [!] Invalid input. Please enter a number.")
+
+
+def _validate_phone(prompt: str) -> str:
+    """Prompt for a phone number (at least 7 digits)."""
+    while True:
+        value = input(prompt).strip()
+        digits = "".join(ch for ch in value if ch.isdigit())
+        if len(digits) >= 7:
+            return value
+        print("  [!] Please enter a valid phone number (at least 7 digits).\n")
+
+
+def _display_items_table(items, title: str):
+    """Display a list of items in a formatted table."""
+    clear_screen()
+    print_header(title)
+
+    if not items:
+        print("  No items found.\n")
+        press_enter_to_continue()
+        return
+
+    print(f"  {'ID':<5} {'Type':<8} {'Title':<25} {'Category':<20} {'Location':<20} {'Status':<10} {'Contact':<20}")
+    print("  " + "-" * 108)
+
+    for item in items:
+        item_id = str(item.item_id)
+        item_type = item.item_type.upper()
+        title_str = item.title[:24] if len(item.title) > 24 else item.title
+        category = item.category[:19] if len(item.category) > 19 else item.category
+        location = item.location[:19] if len(item.location) > 19 else item.location
+        status = item.status[:9] if len(item.status) > 9 else item.status
+        contact = item.contact_name[:19] if len(item.contact_name) > 19 else item.contact_name
+        print(f"  {item_id:<5} {item_type:<8} {title_str:<25} {category:<20} {location:<20} {status:<10} {contact:<20}")
+
+    print("  " + "-" * 108)
+    print(f"  Total items: {len(items)}\n")
+    press_enter_to_continue()
 
 
 class LostAndFoundApp:
@@ -126,37 +203,33 @@ class LostAndFoundApp:
             return ""
     
     def post_item(self, item_type: str):
-        """Post a new lost or found item with optional image upload."""
+        """
+        Post a new lost or found item.
+        
+        Implements:
+        - Input validation (non-empty fields, valid phone)
+        - Category selection via numbered menu
+        - Optional image upload with validation
+        - Saves item to database and confirms
+        """
         clear_screen()
         print_header(f"POST {item_type.upper()} ITEM")
-        
-        title = input("Enter item title: ").strip()
-        if not title:
-            print("Title is required. Item not posted.")
-            press_enter_to_continue()
-            return
-        
-        description = input("Enter description: ").strip()
-        if not description:
-            print("Description is required. Item not posted.")
-            press_enter_to_continue()
-            return
-        
-        category = input("Enter category: ").strip()
-        location = input("Enter location: ").strip()
-        contact_name = input("Enter your name: ").strip()
-        contact_phone = input("Enter your phone: ").strip()
-        
-        if not all([category, location, contact_name, contact_phone]):
-            print("All fields are required. Item not posted.")
-            press_enter_to_continue()
-            return
-        
+
+        title = _validate_non_empty("  Title: ", "Title")
+        description = _validate_non_empty("  Description: ", "Description")
+        category = _select_category()
+        location = _validate_non_empty("  Location (where it was lost/found): ", "Location")
+        contact_name = _validate_non_empty("  Your Name: ", "Name")
+        contact_phone = _validate_phone("  Phone Number: ")
+
         # Handle image upload
         image_path = self._handle_image_upload()
-        
-        new_item = Item(
-            item_id=self.db.get_next_item_id(),
+
+        items = self.db.load_items()
+        new_id = self.db.get_next_item_id()
+
+        item = Item(
+            item_id=new_id,
             title=title,
             description=description,
             category=category,
@@ -164,25 +237,30 @@ class LostAndFoundApp:
             contact_name=contact_name,
             contact_phone=contact_phone,
             item_type=item_type,
-            image_path=image_path
+            image_path=image_path,
+            status="active",
+            posted_by=self.current_user or contact_name,
         )
-        
-        items = self.db.load_items()
-        items.append(new_item)
+
+        items.append(item)
         self.db.save_items(items)
-        
-        print(f"\n{item_type.capitalize()} item posted successfully!")
+
+        print(f"\n  ✓ {item_type.capitalize()} item posted successfully! (ID: {new_id})")
         if image_path:
-            print(f"Image saved at: {image_path}")
+            print(f"  Image saved at: {image_path}")
         press_enter_to_continue()
     
     def view_all_items(self):
-        """Display all items."""
-        # TODO: Implement by Prajwal
-        clear_screen()
-        print_header("ALL ITEMS")
-        print("Feature coming soon - implemented by Prajwal")
-        press_enter_to_continue()
+        """
+        Display all items in a formatted table.
+        
+        Implements:
+        - Loads all items from database
+        - Displays in column-aligned table with headers
+        - Shows item count
+        """
+        items = self.db.load_items()
+        _display_items_table(items, "ALL ITEMS")
     
     def search_items(self):
         """Search and filter items with 5 filter options.
